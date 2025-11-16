@@ -1,0 +1,5 @@
+{
+  "name": "EDID Calculator",
+  "description": "An intelligent EDID calculator for embedded Linux hobbyists. Enter display timing parameters to generate a 128-byte binary EDID file, and use the integrated AI assistant to clarify any questions about VESA standards and display timings.",
+  "requestFramePermissions": []
+}
