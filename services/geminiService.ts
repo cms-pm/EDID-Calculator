@@ -1,5 +1,5 @@
 import { GoogleGenAI, Chat, FunctionDeclaration, Type } from "@google/genai";
-import type { EdidParams, ChatMessage } from './types';
+import type { EdidParams, ChatMessage } from '../types';
 
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
@@ -12,7 +12,7 @@ const chatModel = 'gemini-2.5-flash';
 
 const updateEdidFormDeclaration: FunctionDeclaration = {
   name: 'updateEdidForm',
-  description: 'Updates the EDID parameter form with the provided values. Use this when the user provides specific timing information to populate the form.',
+  description: 'Updates the EDID parameter form with the provided values. Use this when the user provides specific timing or color information to populate the form.',
   parameters: {
     type: Type.OBJECT,
     properties: {
@@ -31,6 +31,20 @@ const updateEdidFormDeclaration: FunctionDeclaration = {
       vImageSize: { type: Type.NUMBER, description: "Vertical image size in mm." },
       hBorder: { type: Type.NUMBER, description: "Horizontal border pixels." },
       vBorder: { type: Type.NUMBER, description: "Vertical border lines." },
+      colorimetry: {
+        type: Type.OBJECT,
+        description: "CIE 1931 color characteristics.",
+        properties: {
+            redX: { type: Type.NUMBER, description: "CIE 1931 'x' coordinate for the red primary color." },
+            redY: { type: Type.NUMBER, description: "CIE 1931 'y' coordinate for the red primary color." },
+            greenX: { type: Type.NUMBER, description: "CIE 1931 'x' coordinate for the green primary color." },
+            greenY: { type: Type.NUMBER, description: "CIE 1931 'y' coordinate for the green primary color." },
+            blueX: { type: Type.NUMBER, description: "CIE 1931 'x' coordinate for the blue primary color." },
+            blueY: { type: Type.NUMBER, description: "CIE 1931 'y' coordinate for the blue primary color." },
+            whiteX: { type: Type.NUMBER, description: "CIE 1931 'x' coordinate for the display's white point." },
+            whiteY: { type: Type.NUMBER, description: "CIE 1931 'y' coordinate for the display's white point." },
+        }
+      }
     },
     // No required fields, as user might provide partial info
   },
@@ -43,7 +57,7 @@ const getChat = (): Chat => {
     chat = ai.chats.create({
       model: chatModel,
       config: {
-        systemInstruction: "You are an expert assistant for embedded systems engineers, specializing in display timings and the EDID specification. Your name is 'Eddy'. Answer questions clearly, concisely, and accurately to help users understand the complexities of display standards. When a user provides EDID or timing information, use the `updateEdidForm` tool to populate the form fields. Inform the user that you have updated the form.",
+        systemInstruction: "You are an expert assistant for embedded systems engineers, specializing in display timings and the EDID specification. Your name is 'Eddy'. Answer questions clearly, concisely, and accurately to help users understand the complexities of display standards. When a user provides EDID, timing, or colorimetry information, use the `updateEdidForm` tool to populate the form fields. Inform the user that you have updated the form.",
         tools: [{ functionDeclarations: [updateEdidFormDeclaration] }],
       },
     });

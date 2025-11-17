@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { EdidParams } from './types';
+import type { EdidParams, AudioSupport, Colorimetry } from './types';
 import { generateEdid } from './services/edidGenerator';
 import Header from './components/Header';
 import EdidForm from './components/EdidForm';
@@ -30,6 +30,18 @@ const App: React.FC = () => {
     hBorder: 0,
     vBorder: 0,
     refreshRate: 60,
+    audio: {
+      enabled: false,
+      channels: 2,
+      sampleRates: { '32kHz': false, '44.1kHz': true, '48kHz': true, '96kHz': false, '192kHz': false },
+      bitDepths: { '16bit': true, '20bit': false, '24bit': false }
+    },
+    colorimetry: { // sRGB/Rec.709 defaults
+        redX: 0.640, redY: 0.330,
+        greenX: 0.300, greenY: 0.600,
+        blueX: 0.150, blueY: 0.060,
+        whiteX: 0.313, whiteY: 0.329
+    }
   };
 
   const [formParams, setFormParams] = useState<EdidParams>(initialParams);
@@ -42,7 +54,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleFormChange = (name: keyof EdidParams, value: string | number) => {
+  const handleFormChange = (name: keyof Omit<EdidParams, 'audio' | 'colorimetry'>, value: string | number) => {
     const newParams = { ...formParams };
 
     // 1. Apply the direct change from user input
@@ -132,34 +144,103 @@ const App: React.FC = () => {
     setFormParams(newParams);
   };
 
+  const handleColorimetryChange = (field: keyof Colorimetry, value: string) => {
+    setFormParams(prev => ({
+      ...prev,
+      colorimetry: {
+        ...prev.colorimetry,
+        [field]: value === '' ? 0 : parseFloat(value),
+      }
+    }));
+  };
+
+  const handleAudioChange = <K extends keyof AudioSupport>(field: K, value: AudioSupport[K]) => {
+    setFormParams(prev => ({
+        ...prev,
+        audio: {
+            ...prev.audio,
+            [field]: value,
+        }
+    }));
+  };
+
+  const handleAudioSubChange = (
+      category: 'sampleRates' | 'bitDepths',
+      key: string,
+      value: boolean
+  ) => {
+      setFormParams(prev => ({
+          ...prev,
+          audio: {
+              ...prev.audio,
+              [category]: {
+                  ...prev.audio[category],
+                  [key]: value
+              }
+          }
+      }));
+  };
+
   const handleFormUpdateFromAssistant = (newParams: Partial<EdidParams>) => {
-    const sanitizedParams: Partial<EdidParams> = {};
+    // A record to hold sanitized updates for flat properties
+    const sanitizedFlatParams: Partial<EdidParams> = {};
+    // A record to hold sanitized updates for nested colorimetry
+    const sanitizedColorimetry: Partial<Colorimetry> = {};
+
     for (const key in newParams) {
         const typedKey = key as keyof EdidParams;
-        const value = newParams[typedKey];
-        if (typedKey === 'displayName' && typeof value === 'string') {
-            sanitizedParams[typedKey] = value;
-        } else if (typeof value === 'number' && !isNaN(value)) {
-            (sanitizedParams[typedKey] as number) = value;
+
+        if (typedKey === 'colorimetry') {
+            const colorUpdate = newParams.colorimetry;
+            if (colorUpdate) {
+                for (const cKey in colorUpdate) {
+                    const typedCKey = cKey as keyof Colorimetry;
+                    const value = colorUpdate[typedCKey];
+                    if (typeof value === 'number' && !isNaN(value)) {
+                        (sanitizedColorimetry[typedCKey] as number) = value;
+                    }
+                }
+            }
+        } else if (typedKey !== 'audio') { // Process everything else except 'audio'
+            const value = newParams[typedKey];
+            if (typedKey === 'displayName' && typeof value === 'string') {
+                sanitizedFlatParams[typedKey] = value;
+            } else if (typeof value === 'number' && !isNaN(value)) {
+                (sanitizedFlatParams[typedKey] as number) = value;
+            }
         }
     }
 
-    const newValues = { ...formParams, ...sanitizedParams };
+    // Merge the updates into a new state object
+    const newValues = { 
+        ...formParams, 
+        ...sanitizedFlatParams,
+        colorimetry: {
+            ...formParams.colorimetry,
+            ...sanitizedColorimetry,
+        }
+    };
+
+    // Perform recalculations based on what was changed
     const hTotal = newValues.hAddressable + newValues.hBlanking;
     const vTotal = newValues.vAddressable + newValues.vBlanking;
 
     if (hTotal > 0 && vTotal > 0) {
-        if ('pixelClock' in sanitizedParams && !isPixelClockLocked) {
+        if ('pixelClock' in sanitizedFlatParams && !isPixelClockLocked) {
             const newRefreshRate = (newValues.pixelClock * 1000) / (hTotal * vTotal);
             newValues.refreshRate = Math.round(newRefreshRate);
-        } else if ('refreshRate' in sanitizedParams && !isRefreshRateLocked) {
+        } else if ('refreshRate' in sanitizedFlatParams && !isRefreshRateLocked) {
             const newPixelClock = (newValues.refreshRate * hTotal * vTotal) / 1000;
             newValues.pixelClock = Math.round(newPixelClock);
         }
     }
+    
     setFormParams(newValues);
   };
 
+  const handlePresetSelect = (preset: EdidParams) => {
+    setFormParams(preset);
+  };
 
   const handleGenerateEdid = async () => {
     setIsLoading(true);
@@ -170,7 +251,7 @@ const App: React.FC = () => {
 
     try {
       const bytes = generateEdid(formParams);
-      if (bytes && bytes.length === 128) {
+      if (bytes && (bytes.length === 128 || bytes.length === 256)) {
         setEdidBytes(bytes);
       } else {
         throw new Error('Invalid EDID data generated. Please check parameters and try again.');
@@ -192,11 +273,15 @@ const App: React.FC = () => {
             <EdidForm
               params={formParams}
               onParamsChange={handleFormChange}
+              onAudioChange={handleAudioChange}
+              onAudioSubChange={handleAudioSubChange}
+              onColorimetryChange={handleColorimetryChange}
               onSubmit={handleGenerateEdid}
               isLoading={isLoading}
               isRefreshRateLocked={isRefreshRateLocked}
               isPixelClockLocked={isPixelClockLocked}
               onLockChange={handleLockChange}
+              onPresetSelect={handlePresetSelect}
             />
             <EdidOutput
               displayName={formParams.displayName}

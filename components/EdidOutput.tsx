@@ -28,6 +28,20 @@ const EdidOutput: React.FC<EdidOutputProps> = ({ displayName, edidBytes, isLoadi
 
   const formatHex = (value: number) => value.toString(16).toUpperCase().padStart(2, '0');
 
+  const renderHexBlock = (bytes: number[], offset: number = 0) => (
+    <pre className="text-gray-300 whitespace-pre">
+        {Array.from({ length: bytes.length / 16 }, (_, i) => (
+            <div key={i} className="flex">
+            <span className="text-gray-500 mr-4">{`0x${((i * 16) + offset).toString(16).padStart(2, '0')}: `}</span>
+            <span>
+                {bytes.slice(i * 16, (i * 16) + 16).map(formatHex).join(' ')}
+            </span>
+            </div>
+        ))}
+    </pre>
+  );
+
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -62,20 +76,21 @@ const EdidOutput: React.FC<EdidOutputProps> = ({ displayName, edidBytes, isLoadi
     }
 
     const downloadFilename = displayName.trim() ? `${displayName.trim().replace(/ /g, '_')}.bin` : 'edid.bin';
+    const hasExtension = edidBytes.length > 128;
 
     return (
       <>
-        <div className="bg-gray-900 font-mono text-sm p-4 rounded-md overflow-x-auto border border-gray-700 max-h-80">
-          <pre className="text-gray-300 whitespace-pre">
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="flex">
-                <span className="text-gray-500 mr-4">{`0x${(i * 16).toString(16).padStart(2, '0')}: `}</span>
-                <span>
-                    {edidBytes.slice(i * 16, (i * 16) + 16).map(formatHex).join(' ')}
-                </span>
-              </div>
-            ))}
-          </pre>
+        <div className="bg-gray-900 font-mono text-sm p-4 rounded-md overflow-x-auto border border-gray-700 max-h-80 space-y-4">
+            {hasExtension ? (
+                <div>
+                    <h3 className="text-teal-400 font-semibold mb-2">Base Block (128 bytes)</h3>
+                    {renderHexBlock(edidBytes.slice(0, 128))}
+                    <h3 className="text-teal-400 font-semibold mt-4 mb-2">CEA-861 Extension Block (128 bytes)</h3>
+                    {renderHexBlock(edidBytes.slice(128, 256), 128)}
+                </div>
+            ) : (
+                renderHexBlock(edidBytes)
+            )}
         </div>
         <div className="mt-6 text-right">
           <button
@@ -94,7 +109,7 @@ const EdidOutput: React.FC<EdidOutputProps> = ({ displayName, edidBytes, isLoadi
   
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-2xl border border-gray-700">
-        <h2 className="text-2xl font-semibold mb-6 text-teal-300">Generated EDID (128 Bytes)</h2>
+        <h2 className="text-2xl font-semibold mb-6 text-teal-300">Generated EDID ({edidBytes ? edidBytes.length : 0} Bytes)</h2>
         {renderContent()}
     </div>
   )
