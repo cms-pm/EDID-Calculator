@@ -156,7 +156,7 @@ async def analyze_with_gemini(request: GeminiRequest):
 
         # Call Gemini API
         response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
+            model='gemini-2.5-flash-8b',
             contents=request.message,
             config=types.GenerateContentConfig(
                 system_instruction="You are an expert assistant for embedded systems engineers, specializing in display timings and the EDID specification. Your name is 'Eddy'. Answer questions clearly, concisely, and accurately to help users understand the complexities of display standards. When a user provides EDID, timing, or colorimetry information, use the `updateEdidForm` tool to populate the form fields. Inform the user that you have updated the form.",
