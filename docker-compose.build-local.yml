@@ -1,0 +1,51 @@
+# ============================================
+# EDID Calculator - Local Build Test
+# ============================================
+# Test the Dockerfile build approach locally
+#
+# Usage:
+#   docker-compose -f docker-compose.build-local.yml build
+#   docker-compose -f docker-compose.build-local.yml up -d
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: edid-frontend-build-test
+    ports:
+      - "8082:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    networks:
+      - edid-test
+
+  backend:
+    image: python:3.11-slim
+    container_name: edid-backend-build-test
+    working_dir: /app
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\")' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    networks:
+      - edid-test
+
+networks:
+  edid-test:
+    driver: bridge
