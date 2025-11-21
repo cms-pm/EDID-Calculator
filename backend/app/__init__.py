@@ -1,0 +1,1 @@
+"""EDID Calculator Backend Application"""

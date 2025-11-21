@@ -1,0 +1,11 @@
+# FastAPI web framework
+fastapi==0.115.5
+
+# ASGI server
+uvicorn[standard]==0.32.1
+
+# Google Gemini SDK
+google-genai==1.29.0
+
+# Pydantic for data validation (included with FastAPI but explicit version)
+pydantic==2.10.3
