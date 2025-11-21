@@ -28,6 +28,7 @@ services:
       - "traefik.http.routers.edid-http.rule=Host(`edid.praqsys.net`)"
       - "traefik.http.routers.edid-http.entrypoints=web"
       - "traefik.http.routers.edid-http.middlewares=edid-redirect-to-https"
+      - "traefik.http.routers.edid-http.service=edid-frontend"
 
       # HTTPS router
       - "traefik.http.routers.edid-secure.rule=Host(`edid.praqsys.net`)"
